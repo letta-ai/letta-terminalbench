@@ -17,7 +17,7 @@ def send_keys(keys: str, time_limit: int = 5) -> None:
     Send keys to the terminal to execute a command or multiple commands.
 
     Args:
-        keys (str): The keys to send to the terminal.
+        keys (str): The keys to send to the terminal. Use the new line character for "Enter".
         time_limit (int): The time limit for the command to complete, in seconds.
 
     Returns:
