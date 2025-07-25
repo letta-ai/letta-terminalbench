@@ -150,7 +150,6 @@ class LettaAgent(Terminus):
                 context_window=200000,
                 put_inner_thoughts_in_kwargs=True,
                 enable_reasoner=True,
-                enable_reasoner=False,
                 max_reasoning_tokens=2048,
                 max_tokens=4096,
                 temperature=0.0,
