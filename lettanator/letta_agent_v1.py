@@ -5,6 +5,7 @@ from terminal_bench.llms.chat import Chat
 from terminal_bench.agents.failure_mode import FailureMode
 from terminal_bench.agents.base_agent import AgentResult
 from letta_client import AgentState, EmbeddingConfig, Letta, CreateBlock, MessageCreate, TerminalToolRule, LettaResponse, ToolCallMessage, LlmConfig
+from fastapi.responses import JSONResponse
 
 from pathlib import Path
 import json
@@ -102,6 +103,10 @@ class LettaAgent(Terminus):
                     # indicating a halt, we should try something else
                     prompt += "The terminal is stuck. Please try something else."
 
+        agent_file_content: JSONResponse = self.letta.agents.export_file(agent.id)
+        with open(logging_dir / "agent.af", "w") as f:
+            f.write(json.dumps(agent_file_content, indent=4))
+
         return AgentResult(
             total_input_tokens=0,
             total_output_tokens=0,
@@ -145,8 +150,10 @@ class LettaAgent(Terminus):
                 context_window=200000,
                 put_inner_thoughts_in_kwargs=True,
                 enable_reasoner=True,
+                enable_reasoner=False,
                 max_reasoning_tokens=2048,
                 max_tokens=4096,
+                temperature=0.0,
             ),
             embedding_config=EmbeddingConfig(
                 embedding_model="text-embedding-3-small",
@@ -155,7 +162,7 @@ class LettaAgent(Terminus):
                 embedding_dim=1536,
                 embedding_chunk_size=300,
             ),
-            initial_message_sequence=None,
+            initial_message_sequence=[],
             include_base_tools=False,
             system=open("lettanator/lettanator.txt").read(),
         )
