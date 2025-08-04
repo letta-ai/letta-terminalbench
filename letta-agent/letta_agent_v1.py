@@ -124,7 +124,6 @@ class LettaAgent(Terminus):
             tool_rules=[
                 TerminalToolRule(tool_name="send_keys"),
                 TerminalToolRule(tool_name="quit_process"),
-                TerminalToolRule(tool_name="task_completed"),
             ],
             llm_config=LlmConfig(
                 model="claude-sonnet-4-20250514",
