@@ -124,7 +124,7 @@ class LettaAgent(Terminus):
             tool_rules=[
                 TerminalToolRule(tool_name="send_keys"),
                 TerminalToolRule(tool_name="quit_process"),
-                # InitToolRule(tool_name="memory_insert")
+                TerminalToolRule(tool_name="task_completed"),
             ],
             llm_config=LlmConfig(
                 model="claude-sonnet-4-20250514",
@@ -147,7 +147,7 @@ class LettaAgent(Terminus):
             ),
             initial_message_sequence=[],
             include_base_tools=False,
-            system=open("lettanator/letta.txt").read(),
+            system=open("letta-agent/letta.txt").read(),
             include_base_tool_rules=False,
         )
 
