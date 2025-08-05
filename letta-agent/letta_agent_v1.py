@@ -39,6 +39,7 @@ class LettaAgent(Terminus):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.model = kwargs["model_name"].split("/")[-1]
         self.letta = Letta(base_url="http://localhost:8283")
         self.letta.tools.upsert_from_function(func=send_keys)
         self.letta.tools.upsert_from_function(func=task_completed)
@@ -126,7 +127,7 @@ class LettaAgent(Terminus):
                 TerminalToolRule(tool_name="quit_process"),
             ],
             llm_config=LlmConfig(
-                model="claude-sonnet-4-20250514",
+                model=self.model,
                 model_endpoint_type="anthropic",
                 model_endpoint="https://api.anthropic.com/v1",
                 model_wrapper=None,
@@ -167,7 +168,7 @@ class LettaAgent(Terminus):
                     command = Command(
                         keystrokes=json_args["keys"] + "\n" if json_args.get("newline", True) else "",
                         timeout_sec=10,
-                        is_blocking=json_args.get("newline", False),
+                        is_blocking=False,
                     )
                     break
             for message in response.messages[::-1]:
