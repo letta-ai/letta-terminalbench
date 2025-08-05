@@ -1,4 +1,7 @@
 # letta-terminalbench
+Official code for Letta on [Terminal-Bench](https://www.tbench.ai/news/announcement). 
+
+Check out our technical blog for more information: [Blog](https://www.letta.com/blog/terminal-bench)
 
 ```bash
 tb run \
