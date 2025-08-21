@@ -8,6 +8,8 @@ import anthropic
 import json
 import os
 import sys
+from typing import List, Dict, Any
+import time
 
 
 CURRENT_SYSTEM_PROMPT = '''
@@ -41,49 +43,131 @@ def agent_file_to_string(agent_json):
     return "\n".join([f"{message['role']}: {message['content']}" for message in filtered_messages])
 
 
-def train_step(client, results, agent_string):
-    response = client.messages.create(
-        model="claude-3-5-sonnet-20241022",
-        max_tokens=4000,
-        system=META_LEARNING_PROMPT.format(CURRENT_SYSTEM_PROMPT=CURRENT_SYSTEM_PROMPT),
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": agent_string}
-                ]
-            }
-        ]
-    )
-    print(response.content[0].text)
-    return response.content[0].text
+def train_step(client: anthropic.Anthropic, agent_strings: List[str], model_name: str) -> str:
+    """Process a batch of agent strings in a single API call and return the generated prompt."""
+    # Combine all agent strings into one message
+    combined_content = "\n\n---\n\n".join([
+        f"Example {i+1}:\n{agent_string}" 
+        for i, agent_string in enumerate(agent_strings)
+    ])
+    
+    try:
+        print(f"Processing batch of {len(agent_strings)} items in single API call...")
+        
+        response = client.messages.create(
+            model=model_name,
+            max_tokens=4000,
+            system=META_LEARNING_PROMPT.format(CURRENT_SYSTEM_PROMPT=CURRENT_SYSTEM_PROMPT),
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": combined_content}
+                    ]
+                }
+            ]
+        )
+        
+        prompt_text = response.content[0].text
+        print(f"✓ Generated batch prompt for {len(agent_strings)} items")
+        return prompt_text
+        
+    except Exception as e:
+        print(f"✗ Error processing batch: {e}")
+        return None
 
-def train(results_dir, output_dir):
+def train_batch(client: anthropic.Anthropic, batch: List[Dict[str, Any]], model_name: str) -> str:
+    """Extract agent strings from a batch and process them together."""
+    agent_strings = [item['agent_string'] for item in batch]
+    return train_step(client, agent_strings, model_name)
+
+def save_batch_results(batch_prompt: str, batch: List[Dict[str, Any]], output_dir: str, batch_num: int):
+    """Save the results of a batch to the output directory."""
+    if batch_prompt is None:
+        print(f"Batch {batch_num} failed, skipping save")
+        return
+        
+    batch_output_dir = os.path.join(output_dir, f"batch_{batch_num:03d}")
+    os.makedirs(batch_output_dir, exist_ok=True)
+    
+    # Save the combined batch prompt
+    batch_prompt_file = os.path.join(batch_output_dir, f"batch_{batch_num}_combined_prompt.txt")
+    with open(batch_prompt_file, "w") as f:
+        f.write(batch_prompt)
+    
+    # Save metadata for each item in the batch
+    for i, item in enumerate(batch):
+        metadata_file = os.path.join(batch_output_dir, f"{item['task_dir']}_{item['dir_name']}_metadata.json")
+        with open(metadata_file, "w") as f:
+            json.dump({
+                'task_dir': item['task_dir'],
+                'dir_name': item['dir_name'],
+                'batch_num': batch_num,
+                'item_index': i,
+                'timestamp': time.time()
+            }, f, indent=2)
+    
+    print(f"Saved batch {batch_num} results to {batch_output_dir}")
+
+
+def train(results_dir, output_dir, model_name):
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-
-
+    
+    # Collect all valid items first
+    items = []
     for task_dir in os.listdir(results_dir):
-        task_dir = os.path.join(results_dir, task_dir)
-        if not os.path.isdir(task_dir):
+        task_dir_path = os.path.join(results_dir, task_dir)
+        if not os.path.isdir(task_dir_path):
             continue
 
-        for dir in os.listdir(task_dir):
-            if not os.path.isfile(os.path.join(task_dir, dir, "results.json")):
-                continue
-            results = os.path.join(task_dir, dir, "results.json")
-            with open(results, "r") as f:
-                results = json.load(f)
+        for dir_name in os.listdir(task_dir_path):
+            results_path = os.path.join(task_dir_path, dir_name, "results.json")
+            agent_logs_path = os.path.join(task_dir_path, dir_name, "agent-logs/agent.af")
             
-            if not os.path.isfile(os.path.join(task_dir, dir, "agent-logs/agent.af")):
+            if not os.path.isfile(results_path) or not os.path.isfile(agent_logs_path):
                 continue
-            with open(os.path.join(task_dir, dir, "agent-logs/agent.af"), "r") as f:
-                agent_logs = json.load(f)
-                agent_string = agent_file_to_string(agent_logs)
-
-            train_step(client, results, agent_string)
- 
-
-        break
+                
+            try:
+                with open(results_path, "r") as f:
+                    results = json.load(f)
+                
+                with open(agent_logs_path, "r") as f:
+                    agent_logs = json.load(f)
+                    agent_string = agent_file_to_string(agent_logs)
+                
+                items.append({
+                    'task_dir': task_dir,
+                    'dir_name': dir_name,
+                    'agent_string': agent_string,
+                    'results': results
+                })
+            except Exception as e:
+                print(f"Error processing {task_dir}/{dir_name}: {e}")
+                continue
+    
+    print(f"Found {len(items)} valid items to process")
+    
+    # Process items in batches
+    batch_size = 5  # Process 5 items at a time
+    batch_num = 0
+    
+    for i in range(0, len(items), batch_size):
+        batch = items[i:i + batch_size]
+        batch_num += 1
+        
+        print(f"\nProcessing batch {batch_num} ({len(batch)} items)...")
+        
+        # Process the batch
+        batch_prompt = train_batch(client, batch, model_name)
+        
+        # Save batch results
+        save_batch_results(batch_prompt, batch, output_dir, batch_num)
+        
+        # Add a small delay between batches to avoid rate limiting
+        if i + batch_size < len(items):
+            time.sleep(1)
+    
+    print(f"\nCompleted processing {len(items)} items in {batch_num} batches")
 
             
 
@@ -93,8 +177,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--results_dir", type=str, required=True)
     parser.add_argument("--output_dir", type=str, required=True)
+    parser.add_argument("--model", type=str, default="claude-3-5-sonnet-20241022", 
+                       help="Anthropic model to use for training")
     args = parser.parse_args()
-    train(args.results_dir, args.output_dir)
+    train(args.results_dir, args.output_dir, args.model)
 
 if __name__ == "__main__":
     main()
