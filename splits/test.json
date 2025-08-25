@@ -1,0 +1,19 @@
+{
+  "tasks": [
+    "extract-safely",
+    "eval-mteb.hard",
+    "create-bucket",
+    "blind-maze-explorer-5x5",
+    "crack-7z-hash",
+    "blind-maze-explorer-algorithm",
+    "grid-pattern-transform",
+    "path-tracing",
+    "polyglot-rust-c",
+    "heterogeneous-dates",
+    "eval-mteb",
+    "train-fasttext"
+  ],
+  "count": 12,
+  "seed": 42,
+  "split": "test"
+}

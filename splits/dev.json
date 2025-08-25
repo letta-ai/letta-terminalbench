@@ -1,0 +1,19 @@
+{
+  "tasks": [
+    "cron-broken-network",
+    "cartpole-rl-training",
+    "solana-data",
+    "swe-bench-langcodes",
+    "oom",
+    "blind-maze-explorer-algorithm.hard",
+    "path-tracing-reverse",
+    "organization-json-generator",
+    "processing-pipeline",
+    "get-bitcoin-nodes",
+    "crack-7z-hash.easy",
+    "csv-to-parquet"
+  ],
+  "count": 12,
+  "seed": 42,
+  "split": "dev"
+}

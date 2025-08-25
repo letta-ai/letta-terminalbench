@@ -1,5 +1,5 @@
 from terminal_bench.terminal.tmux_session import TmuxSession
-from terminal_bench.agents.terminus import Terminus, Command
+from terminal_bench.agents.terminus_1 import Terminus, Command
 from terminal_bench.agents.failure_mode import FailureMode
 from terminal_bench.agents.base_agent import AgentResult
 from letta_client import AgentState,EmbeddingConfig, Letta, CreateBlock, MessageCreate, TerminalToolRule, LettaResponse, ToolCallMessage, LlmConfig
@@ -38,6 +38,7 @@ def quit_process() -> None:
 class LettaAgent(Terminus):
 
     def __init__(self, **kwargs):
+        print(f"Initializing LettaAgent with model: {kwargs['model_name']}")
         super().__init__(**kwargs)
         self.model = kwargs["model_name"].split("/")[-1]
         self.letta = Letta(base_url="http://localhost:8283")
@@ -69,6 +70,7 @@ class LettaAgent(Terminus):
         logging_dir: Path | None = None,
     ) -> AgentResult:
 
+        print(f"Performing task: {instruction}")
         agent = self._create_letta_agent(instruction, session)
         with open(logging_dir / "agent.id", "w") as f:
             f.write(agent.id)
