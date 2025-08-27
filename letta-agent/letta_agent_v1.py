@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from pathlib import Path
 import json
+import re
 
 
 def send_keys(keys: str, newline: bool = True) -> None:
@@ -35,6 +36,14 @@ def quit_process() -> None:
     pass
 
 
+def strip_code_blocks(text: str) -> str:
+    """
+    Extract only the content inside triple backticks, removing everything else.
+    """
+    matches = re.findall(r'```([^`]*)```', text, flags=re.DOTALL)
+    return '\n'.join(match.strip() for match in matches)
+
+
 class LettaAgent(Terminus):
 
     def __init__(self, **kwargs):
@@ -48,7 +57,7 @@ class LettaAgent(Terminus):
         if self.batch_prompt_file:
             try:
                 with open(self.batch_prompt_file, 'r') as f:
-                    self.batch_prompt_content = f.read()
+                    self.batch_prompt_content = strip_code_blocks(f.read())
                 print(f"Loaded batch prompt from: {self.batch_prompt_file}")
             except Exception as e:
                 print(f"Warning: Could not load batch prompt file {self.batch_prompt_file}: {e}")
@@ -161,7 +170,7 @@ class LettaAgent(Terminus):
             ),
             initial_message_sequence=[],
             include_base_tools=False,
-            system=self.batch_prompt_content if self.batch_prompt_content else open("letta-agent/letta.txt").read(),
+            system=self.batch_prompt_content if self.batch_prompt_content else strip_code_blocks(open("letta-agent/letta.txt").read()),
             include_base_tool_rules=False,
         )
 
