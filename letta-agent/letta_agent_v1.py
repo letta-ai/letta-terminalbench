@@ -41,6 +41,18 @@ class LettaAgent(Terminus):
         print(f"Initializing LettaAgent with model: {kwargs['model_name']}")
         super().__init__(**kwargs)
         self.model = kwargs["model_name"].split("/")[-1]
+        self.batch_prompt_file = kwargs.get("batch_prompt_file")
+        self.batch_prompt_content = None
+        
+        # Load batch prompt if provided
+        if self.batch_prompt_file:
+            try:
+                with open(self.batch_prompt_file, 'r') as f:
+                    self.batch_prompt_content = f.read()
+                print(f"Loaded batch prompt from: {self.batch_prompt_file}")
+            except Exception as e:
+                print(f"Warning: Could not load batch prompt file {self.batch_prompt_file}: {e}")
+        
         self.letta = Letta(base_url="http://localhost:8283")
         self.letta.tools.upsert_from_function(func=send_keys)
         self.letta.tools.upsert_from_function(func=task_completed)
@@ -149,7 +161,7 @@ class LettaAgent(Terminus):
             ),
             initial_message_sequence=[],
             include_base_tools=False,
-            system=open("letta-agent/letta.txt").read(),
+            system=self.batch_prompt_content if self.batch_prompt_content else open("letta-agent/letta.txt").read(),
             include_base_tool_rules=False,
         )
 
