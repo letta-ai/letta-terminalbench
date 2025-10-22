@@ -1,5 +1,5 @@
 from terminal_bench.terminal.tmux_session import TmuxSession
-from terminal_bench.agents.terminus import Terminus, Command
+from terminal_bench.agents.terminus_1 import Terminus, Command
 from terminal_bench.agents.failure_mode import FailureMode
 from terminal_bench.agents.base_agent import AgentResult
 from letta_client import AgentState,EmbeddingConfig, Letta, CreateBlock, MessageCreate, TerminalToolRule, LettaResponse, ToolCallMessage, LlmConfig
@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from pathlib import Path
 import json
+import re
 
 
 def send_keys(keys: str, newline: bool = True) -> None:
@@ -35,11 +36,32 @@ def quit_process() -> None:
     pass
 
 
+def strip_code_blocks(text: str) -> str:
+    """
+    Extract only the content inside triple backticks, removing everything else.
+    """
+    matches = re.findall(r'```([^`]*)```', text, flags=re.DOTALL)
+    return '\n'.join(match.strip() for match in matches)
+
+
 class LettaAgent(Terminus):
 
     def __init__(self, **kwargs):
+        print(f"Initializing LettaAgent with model: {kwargs['model_name']}")
         super().__init__(**kwargs)
         self.model = kwargs["model_name"].split("/")[-1]
+        self.batch_prompt_file = kwargs.get("batch_prompt_file")
+        self.batch_prompt_content = None
+        
+        # Load batch prompt if provided
+        if self.batch_prompt_file:
+            try:
+                with open(self.batch_prompt_file, 'r') as f:
+                    self.batch_prompt_content = strip_code_blocks(f.read())
+                print(f"Loaded batch prompt from: {self.batch_prompt_file}")
+            except Exception as e:
+                print(f"Warning: Could not load batch prompt file {self.batch_prompt_file}: {e}")
+        
         self.letta = Letta(base_url="http://localhost:8283")
         self.letta.tools.upsert_from_function(func=send_keys)
         self.letta.tools.upsert_from_function(func=task_completed)
@@ -69,6 +91,7 @@ class LettaAgent(Terminus):
         logging_dir: Path | None = None,
     ) -> AgentResult:
 
+        print(f"Performing task: {instruction}")
         agent = self._create_letta_agent(instruction, session)
         with open(logging_dir / "agent.id", "w") as f:
             f.write(agent.id)
@@ -147,7 +170,7 @@ class LettaAgent(Terminus):
             ),
             initial_message_sequence=[],
             include_base_tools=False,
-            system=open("letta-agent/letta.txt").read(),
+            system=self.batch_prompt_content if self.batch_prompt_content else strip_code_blocks(open("letta-agent/letta.txt").read()),
             include_base_tool_rules=False,
         )
 

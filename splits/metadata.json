@@ -1,0 +1,10 @@
+{
+  "seed": 42,
+  "total_tasks": 80,
+  "splits": {
+    "train": 56,
+    "dev": 12,
+    "test": 12
+  },
+  "created_at": 1756143326.9870481
+}
