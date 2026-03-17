@@ -1,0 +1,4 @@
+terminal-bench==0.2.15
+letta-client==0.1.242
+fastapi
+httpx[socks]
